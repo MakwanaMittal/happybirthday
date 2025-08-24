@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Birthday Surprise</title>
+<style>
+  :root{
+    --bg1:#efc5ef; --bg2:#efc5ef;
+    --pink:#ff7ad9; --cyan:#7afcff; --gold:#ffd166; --mint:#baffc9; --lav:#c3b5ff;
+    --text:#600d0d; --muted:#fef7f7;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; color:var(--text);
+    background: radial-gradient(1200px 800px at 50% 40%, #2a2f64 0%, var(--bg1) 45%, var(--bg2) 100%);
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+    overflow:hidden;
+  }
+
+  /* Layers */
+  #fireworks{position:fixed; inset:0; z-index:0}
+  #heartsLayer, #balloonsLayer{position:fixed; inset:0; pointer-events:none; z-index:1; overflow:hidden}
+
+  /* Onboarding overlay */
+  .overlay{
+    position:fixed; inset:0; z-index:5; display:flex; align-items:center; justify-content:center;
+    background: radial-gradient(800px 500px at 50% 40%, #ffffff0a, #00000088);
+    backdrop-filter: blur(6px);
+  }
+  .panel{
+    width:min(720px, 94vw); text-align:center; padding:24px 18px 22px;
+    background:linear-gradient(180deg, #ffffff10, #ffffff06);
+    border:1px solid #ffffff22; border-radius:20px; backdrop-filter: blur(10px);
+    box-shadow: 0 20px 60px rgba(245, 242, 242, 0.35), inset 0 0 0 1px #ffffff08;
+  }
+  h1.title{
+    font-size: clamp(26px, 6vw, 54px); margin:4px 0 8px; line-height:1.1; font-weight:800;
+    background: linear-gradient(90deg, var(--pink), var(--cyan), var(--gold), var(--mint));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    animation: hue 10s linear infinite;
+  }
+  @keyframes hue { from{ filter:hue-rotate(0deg)} to{ filter:hue-rotate(360deg)} }
+  .sub{color:var(--muted); margin:0 0 16px}
+  .row{display:flex; gap:10px; justify-content:center; flex-wrap:wrap}
+  input[type="text"]{
+    width:min(420px, 86vw); padding:12px 14px; border-radius:12px; border:1px solid #ffffff33; background:#e2d6eb; color:var(--text); font-size:16px;
+    outline:none;
+  }
+  .btn{
+    cursor:pointer; border:none; border-radius:999px; padding:12px 18px; font-size:16px; font-weight:700;
+    background:linear-gradient(180deg, #ffffff, #e9efff); color:#1b1f3b;
+    box-shadow:0 10px 20px rgba(0,0,0,.25), inset 0 -2px 0 #00000010;
+  }
+  .btn:hover{transform:translateY(-1px)}
+  .btn:active{transform:translateY(0)}
+  .note{font-size:12px; color:#aeb3d9; margin-top:10px}
+
+  /* Main card */
+  .wrap{position:relative; z-index:3; height:100%; display:flex; align-items:center; justify-content:center; padding:24px}
+  .card{
+    width:min(950px, 96vw); text-align:center; padding:26px 20px 26px;
+    background:linear-gradient(180deg, #ffffff10, #ffffff05);
+    border:1px solid #ffffff22; border-radius:20px; backdrop-filter: blur(10px);
+    box-shadow: 0 20px 60px rgba(0,0,0,.35), inset 0 0 0 1px #ffffff08;
+  }
+  .big{font-size: clamp(28px, 7vw, 64px); margin:8px 0 6px; font-weight:800}
+  .gradient{background: linear-gradient(90deg, var(--pink), var(--cyan), var(--gold), var(--mint)); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .muted{color:var(--muted)}
+  .controls{display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin:14px 0 6px}
+  .hidden{display:none}
+
+  /* Balloons */
+  .balloon{
+    position:absolute; bottom:-20vh; width:50px; height:65px; border-radius:50% 50% 45% 45%;
+    background:var(--pink); box-shadow: inset -10px -14px 24px rgba(0,0,0,.25);
+    animation: float var(--dur,18s) linear infinite;
+  }
+  .balloon:before{content:""; position:absolute; left:50%; top:62px; width:2px; height:80px; background:#ffffff30; transform:translateX(-50%)}
+  .balloon:after{content:""; position:absolute; left:50%; top:58px; width:10px; height:8px; background:inherit; transform:translateX(-50%) rotate(45deg); border-radius:2px}
+  @keyframes float{0%{transform:translateY(0)} 100%{transform:translateY(-130vh) translateX(var(--drift,30px))}}
+
+  /* Hearts */
+  .heart{
+    position:absolute; width:18px; height:18px; transform: rotate(45deg); opacity:.9;
+    animation: rise var(--hDur, 10s) linear forwards;
+  }
+  .heart:before, .heart:after{
+    content:""; position:absolute; width:18px; height:18px; background: currentColor; border-radius:50%;
+  }
+  .heart:before{left:-9px; top:0}
+  .heart:after{left:0; top:-9px}
+  @keyframes rise{
+    0%{ transform: translateY(0) rotate(45deg) scale(.6); opacity:0.9}
+    100%{ transform: translateY(-120vh) rotate(45deg) scale(1.2); opacity:0}
+  }
+
+  /* Surprise message */
+  .reveal{opacity:0; transform:translateY(8px); transition: all .6s ease; max-width:720px; margin:10px auto 0}
+  .reveal.show{opacity:1; transform:translateY(0)}
+  .reveal p{font-size: clamp(16px, 2.6vw, 20px); margin:8px 0 0}
+
+  /* Slideshow modal */
+  .modal{
+    position:fixed; inset:0; z-index:6; background:#050614f0; display:none; align-items:center; justify-content:center; flex-direction:column; gap:12px; padding:14px;
+  }
+  .modal.open{display:flex}
+  .slide{
+    width:min(900px, 95vw); height:min(65vh, 70vw); background:#0d102b; border-radius:16px; overflow:hidden;
+    display:flex; align-items:center; justify-content:center; box-shadow:0 20px 60px rgba(0,0,0,.5), inset 0 0 0 1px #ffffff14;
+  }
+  .slide img, .slide video{max-width:100%; max-height:100%; display:block}
+  .modal .toprow{display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:center}
+  .pill{padding:8px 12px; border-radius:999px; border:1px solid #ffffff33; color:#fff; font-size:14px}
+  .endMessage{font-size: clamp(18px, 3.8vw, 28px); text-align:center}
+
+  .hint{color:#aeb3d9; font-size:12px; margin-top:8px}
+</style>
+</head>
+<body>
+  <!-- Effects -->
+  <canvas id="fireworks"></canvas>
+  <div id="balloonsLayer"></div>
+  <div id="heartsLayer"></div>
+
+  <!-- Name overlay -->
+  <div class="overlay" id="nameOverlay" aria-modal="true" role="dialog">
+    <div class="panel">
+      <h1 class="title">A Special Birthday Surprise for my bro ✨</h1>
+      <p class="sub"></p>
+      <div class="row">
+        <input id="nameInput" type="text" placeholder="Hey handsome! please enter your good name" autocomplete="name" />
+        <button class="btn" id="startBtn">Start</button>
+      </div>
+      <p class="note">Audio starts after you press buttons.</p>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="wrap">
+    <div class="card" role="main" aria-labelledby="greetTitle">
+      <h2 id="greetTitle" class="big gradient">Happy Birthday, <span id="personName">Friend</span>! 🎉</h2>
+      <p class="muted" id="subline">Wishing you smiles, surprises, and the best year ahead.</p>
+
+      <div class="controls">
+        <button class="btn" id="btnSurprise">🎁 Reveal My Wish</button>
+        <button class="btn" id="btnSpecial">💖 Special Surprise</button>
+      </div>
+
+      <div id="wishBox" class="reveal">
+        <p id="wishText"> is your custom message. Replace meThis in the CONFIG.</p>
+        <div class="controls">
+          <button class="btn" id="btnVoice">🔊 Play/Pause Voice</button>
+        </div>
+      </div>
+
+      <p class="hint"></p>
+    </div>
+  </div>
+
+  <!-- Slideshow + Finale -->
+  <div class="modal" id="slidesModal" aria-hidden="true" role="dialog" aria-label="Photo slideshow">
+    <div class="toprow">
+      <span class="pill" id="progressPill">Photo 1/1</span>
+      
+    </div>
+    <div class="slide"><img id="slideImg" alt="Memories" /></div>
+    <div id="finale" class="hidden">
+      <div class="endMessage gradient" id="finalMessage">Forever with you ❤️</div>
+      <div class="slide" style="margin-top:10px">
+       <video id="finalVideo" controls playsinline></video>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Audio -->
+  <audio id="voiceAudio" preload="auto"></audio>
+  <audio id="musicAudio" preload="auto" loop></audio>
+
+<script>
+/** =========================
+ *          CONFIG
+ *  Edit these values only
+ *  ========================= */
+const CONFIG = {
+  defaultName: "Friend",
+  greetingSubline: "Wishing you smiles, surprises, and the best year ahead.",
+  wishText: "🎉 Happy Birthday to my incredible big brother! 🥳 I love you so much ❤️ and I really miss you 😢. Even though we used to fight over everything 🤼‍♂️😂, I wouldn't trade those memories for anything—they're a big part of our special bond 🤗. Here's to a wonderful day 🎂🎁, and I can't wait until we can make more fun ✨ (and maybe a few less fights! 😉) memories together again 📸💫",
+  voiceSrc: "happybirtdaylallu.mp3",            // <- Put your voice note file here
+  slideshowMusicSrc: "hbmsg.mp3", // <- Background music for photo slideshow
+  romanceVideoSrc: "sv.mp4",              // <- Final cartoon romance clip
+  finalLoveMessage: "Forever with you ❤️",
+  // List your photos here (filenames in same folder as this HTML)
+  photos: [
+    "bs2.jpg",
+    "bs3.jpg",
+    "bs1.jpg",
+    
+  ],
+  // Slideshow settings
+  slideDurationMs: 2500, // time each photo shows
+  fadeMs: 450            // simple crossfade timing
+};
+/** ========================= */
+
+const nameOverlay = document.getElementById('nameOverlay');
+const nameInput   = document.getElementById('nameInput');
+const startBtn    = document.getElementById('startBtn');
+const personName  = document.getElementById('personName');
+const subline     = document.getElementById('subline');
+
+const wishBox   = document.getElementById('wishBox');
+const wishText  = document.getElementById('wishText');
+const btnSurprise = document.getElementById('btnSurprise');
+const btnSpecial  = document.getElementById('btnSpecial');
+const btnVoice    = document.getElementById('btnVoice');
+
+const voiceAudio = document.getElementById('voiceAudio');
+const musicAudio = document.getElementById('musicAudio');
+
+const balloonsLayer = document.getElementById('balloonsLayer');
+const heartsLayer   = document.getElementById('heartsLayer');
+const fwCanvas      = document.getElementById('fireworks');
+const ctx           = fwCanvas.getContext('2d');
+
+let W = fwCanvas.width = window.innerWidth;
+let H = fwCanvas.height = window.innerHeight;
+window.addEventListener('resize', ()=>{ W=fwCanvas.width=window.innerWidth; H=fwCanvas.height=window.innerHeight; });
+
+/* Init configurable text/media */
+(function initConfig(){
+  personName.textContent = CONFIG.defaultName;
+  subline.textContent = CONFIG.greetingSubline;
+  wishText.textContent = CONFIG.wishText;
+  voiceAudio.src = CONFIG.voiceSrc;
+  musicAudio.src = CONFIG.slideshowMusicSrc;
+  document.getElementById('finalMessage').textContent = CONFIG.finalLoveMessage;
+  document.getElementById('finalVideo').src = CONFIG.romanceVideoSrc;
+})();
+
+/* ---------- Start Flow (name gate + first celebration) ---------- */
+startBtn.addEventListener('click', () => {
+  const nm = nameInput.value.trim() || CONFIG.defaultName;
+  personName.textContent = nm;
+  nameOverlay.classList.add('hidden'); // hide modal
+  // Launch effects
+  spawnBalloons(22);
+  startHearts();
+  burstFireworks(3);
+});
+
+/* ---------- Surprise (text + voice) ---------- */
+btnSurprise.addEventListener('click', async () => {
+  wishBox.classList.add('show');
+  // Attempt to autoplay voice (user just clicked)
+  try {
+    if (voiceAudio.paused) await voiceAudio.play();
+  } catch {}
+});
+
+/* Voice toggle */
+btnVoice.addEventListener('click', async () => {
+  try {
+    if (voiceAudio.paused) { await voiceAudio.play(); btnVoice.textContent="⏸ Pause Voice"; }
+    else { voiceAudio.pause(); btnVoice.textContent="🔊 Play Voice"; }
+  } catch (e) {
+    alert("Could not play audio. Check that your voice file exists and user interaction occurred.");
+  }
+});
+
+/* ---------- Special Surprise (slideshow + music + finale) ---------- */
+const slidesModal = document.getElementById('slidesModal');
+const slideImg    = document.getElementById('slideImg');
+const finalWrap   = document.getElementById('finale');
+const finalVideo  = document.getElementById('finalVideo');
+const btnCloseSlides = document.getElementById('btnCloseSlides');
+const progressPill = document.getElementById('progressPill');
+
+let slideIndex = 0;
+let slideTimer = null;
+let slideshowRunning = false;
+
+btnSpecial.addEventListener('click', async () => {
+  // Open modal
+  slidesModal.classList.add('open');
+  slidesModal.setAttribute('aria-hidden','false');
+  finalWrap.classList.add('hidden');
+  slideImg.style.opacity = 0;
+
+  // Start music
+  try { await musicAudio.play(); } catch {}
+
+  // Start slideshow
+  slideshowRunning = true;
+  slideIndex = 0;
+  runSlide();
+});
+
+btnCloseSlides.addEventListener('click', () => closeSlideshow());
+
+function closeSlideshow(){
+  slidesModal.classList.remove('open');
+  slidesModal.setAttribute('aria-hidden','true');
+  musicAudio.pause();
+  if (slideTimer) { clearTimeout(slideTimer); slideTimer = null; }
+  slideshowRunning = false;
+}
+
+/* Slideshow loop */
+function runSlide(){
+  if (!slideshowRunning) return;
+
+  if (slideIndex < CONFIG.photos.length){
+    const src = CONFIG.photos[slideIndex];
+    progressPill.textContent = `Photo ${slideIndex+1}/${CONFIG.photos.length}`;
+    crossfadeTo(src, () => {
+      slideIndex++;
+      slideTimer = setTimeout(runSlide, CONFIG.slideDurationMs);
+    });
+  } else {
+    // End → show final message + cartoon clip
+    progressPill.textContent = "Finale";
+    slideImg.style.opacity = 0;
+    finalWrap.classList.remove('hidden');
+    musicAudio.pause();
+    burstFireworks(2);
+  }
+}
+
+function crossfadeTo(src, done){
+  const img = new Image();
+  img.onload = () => {
+    slideImg.style.transition = `opacity ${CONFIG.fadeMs}ms ease`;
+    slideImg.style.opacity = 0;
+    setTimeout(() => {
+      slideImg.src = src;
+      slideImg.alt = "Memory photo";
+      slideImg.style.opacity = 1;
+      done && done();
+    }, CONFIG.fadeMs);
+  };
+  img.onerror = () => {
+    console.warn("Could not load", src);
+    done && done();
+  };
+  img.src = src;
+}
+
+/* ---------- Balloons ---------- */
+function spawnBalloons(n=16){
+  const hues = [ 'var(--pink)', 'var(--cyan)', 'var(--gold)', 'var(--mint)', 'var(--lav)'];
+  for(let i=0;i<n;i++){
+    const b = document.createElement('div');
+    b.className = 'balloon';
+    b.style.background = hues[i % hues.length];
+    b.style.left = (Math.random()*100)+'vw';
+    b.style.setProperty('--dur', (14 + Math.random()*10) + 's');
+    b.style.setProperty('--drift', (Math.random()*80 - 40) + 'px');
+    b.style.animationDelay = (-Math.random()*20)+'s';
+    balloonsLayer.appendChild(b);
+  }
+}
+
+/* ---------- Hearts ---------- */
+let heartsInterval = null;
+function startHearts(){
+  if (heartsInterval) return;
+  heartsInterval = setInterval(()=>{
+    for(let i=0;i<4;i++) makeHeart();
+  }, 400);
+  // stop after ~20s
+  setTimeout(()=>{ clearInterval(heartsInterval); heartsInterval=null; }, 20000);
+}
+function makeHeart(){
+  const h = document.createElement('div');
+  h.className = 'heart';
+  const colors = ['#ff6aa2','#ff9ecb','#ffccd5','#ffd1e8','#ffc0cb'];
+  h.style.color = colors[Math.floor(Math.random()*colors.length)];
+  h.style.left = Math.random()*100 + 'vw';
+  h.style.bottom = '-20px';
+  h.style.setProperty('--hDur', (8+Math.random()*6)+'s');
+  heartsLayer.appendChild(h);
+  // remove after animation
+  setTimeout(()=> h.remove(), 14000);
+}
+
+/* ---------- Fireworks (Canvas) ---------- */
+const particles = [];
+function firework(x,y,color){
+  const n = 40 + Math.floor(Math.random()*30);
+  for(let i=0;i<n;i++){
+    const ang = (Math.PI*2) * (i/n) + Math.random()*0.15;
+    const speed = 2 + Math.random()*4;
+    particles.push({
+      x, y, vx: Math.cos(ang)*speed, vy: Math.sin(ang)*speed,
+      life: 60 + Math.random()*30, color, alpha: 1
+    });
+  }
+}
+function burstFireworks(times=1){
+  const colors = ['#ff7ad9','#7afcff','#ffd166','#baffc9','#fff36e','#86a0ff'];
+  for(let i=0;i<times;i++){
+    setTimeout(()=>{
+      firework(80 + Math.random()*(W-160), 120 + Math.random()*(H*0.5), colors[Math.floor(Math.random()*colors.length)]);
+    }, i*400);
+  }
+}
+function step(){
+  ctx.clearRect(0,0,W,H);
+  for(let i=particles.length-1;i>=0;i--){
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy; p.vy += 0.02; p.life--; p.alpha = Math.max(0, p.life/90);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = p.alpha; ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, Math.PI*2); ctx.fill();
+    if(p.life<=0) particles.splice(i,1);
+  }
+  ctx.globalAlpha = 1;
+  requestAnimationFrame(step);
+}
+step();
+
+/* Accessibility: Enter key to start */
+nameInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') startBtn.click();
+});
+</script>
+</body>
+</html>
